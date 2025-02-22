@@ -47,7 +47,7 @@ Drupal CMS and all derivative works are licensed under the [GNU General Public L
 
 Learn about the [Drupal trademark and logo policy here](https://www.drupal.com/trademark).
 
-## Initialize a drupalcms recipe
+## Initialize a Drupal CMS Lando recipe
 
 ```shell
 mkdir drupalcms-app \
