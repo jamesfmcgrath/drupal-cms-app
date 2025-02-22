@@ -1,0 +1,236 @@
+<?php
+
+namespace Drupal\project_browser_devel\Plugin\ProjectBrowserSource;
+
+use Drupal\Component\Utility\Random;
+use Drupal\Core\Cache\CacheBackendInterface;
+use Drupal\Core\Url;
+use Drupal\project_browser\Plugin\ProjectBrowserSourceBase;
+use Drupal\project_browser\ProjectBrowser\Filter\BooleanFilter;
+use Drupal\project_browser\ProjectBrowser\Filter\MultipleChoiceFilter;
+use Drupal\project_browser\ProjectBrowser\Project;
+use Drupal\project_browser\ProjectBrowser\ProjectsResultsPage;
+use Symfony\Component\DependencyInjection\ContainerInterface;
+
+/**
+ * Random data plugin. Used mostly for testing.
+ *
+ * To enable this source use the following drush command.
+ * phpcs:ignore
+ *   drush config:set project_browser.admin_settings enabled_source random_data
+ *
+ * @ProjectBrowserSource(
+ *   id = "random_data",
+ *   label = @Translation("Random data"),
+ *   description = @Translation("Gets random project and filters information"),
+ *   local_task = {}
+ * )
+ */
+final class RandomDataPlugin extends ProjectBrowserSourceBase {
+
+  /**
+   * Utility to create random data.
+   *
+   * @var \Drupal\Component\Utility\Random
+   */
+  protected Random $randomGenerator;
+
+  /**
+   * ProjectBrowser cache bin.
+   *
+   * @var \Drupal\Core\Cache\CacheBackendInterface
+   */
+  protected CacheBackendInterface $cacheBin;
+
+  /**
+   * Constructs a MockDrupalDotOrg object.
+   *
+   * @param array $configuration
+   *   A configuration array containing information about the plugin instance.
+   * @param string $plugin_id
+   *   The plugin ID for the plugin instance.
+   * @param mixed $plugin_definition
+   *   The plugin implementation definition.
+   * @param \Drupal\Core\Cache\CacheBackendInterface $cache_bin
+   *   The cache bin.
+   */
+  public function __construct(array $configuration, $plugin_id, $plugin_definition, CacheBackendInterface $cache_bin) {
+    parent::__construct($configuration, $plugin_id, $plugin_definition);
+    $this->randomGenerator = new Random();
+    $this->cacheBin = $cache_bin;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public static function create(ContainerInterface $container, array $configuration, $plugin_id, $plugin_definition): static {
+    return new static(
+      $configuration,
+      $plugin_id,
+      $plugin_definition,
+      $container->get('cache.project_browser'),
+    );
+  }
+
+  /**
+   * Generate random IDs and labels.
+   *
+   * @param int $array_length
+   *   Length of the array to generate.
+   *
+   * @return array
+   *   Array of random IDs and names.
+   */
+  protected function getRandomIdsAndNames(int $array_length = 4): array {
+    $data = [];
+    for ($i = 0; $i < $array_length; $i++) {
+      $data[] = [
+        'id' => uniqid(),
+        'name' => ucwords($this->randomGenerator->word(rand(6, 10))),
+      ];
+    }
+
+    return $data;
+  }
+
+  /**
+   * Returns a random date.
+   *
+   * @return int
+   *   Random timestamp.
+   */
+  protected function getRandomDate(): int {
+    return rand(strtotime('2 years ago'), strtotime('today'));
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function getCategories(): array {
+    $stored_categories = $this->cacheBin->get('RandomData:categories');
+    if ($stored_categories) {
+      $categories = $stored_categories->data;
+    }
+    else {
+      $categories = $this->getRandomIdsAndNames(20);
+      $this->cacheBin->set('RandomData:categories', $categories);
+    }
+    return $categories;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getFilterDefinitions(): array {
+    $filters = [];
+
+    $categories = $this->getCategories();
+    $choices = array_combine(
+      array_column($categories, 'id'),
+      array_column($categories, 'name'),
+    );
+    $filters['categories'] = new MultipleChoiceFilter($choices, [], $this->t('Categories'), NULL);
+
+    $filters['security_advisory_coverage'] = new BooleanFilter(
+      TRUE,
+      $this->t('Show projects covered by a security policy'),
+      $this->t('Show all'),
+      $this->t('Security advisory coverage'),
+      NULL,
+    );
+    $filters['maintenance_status'] = new BooleanFilter(
+      TRUE,
+      $this->t('Show actively maintained projects'),
+      $this->t('Show all'),
+      $this->t('Maintenance status'),
+      NULL,
+    );
+    $filters['development_status'] = new BooleanFilter(
+      FALSE,
+      $this->t('Show projects under active development'),
+      $this->t('Show all'),
+      $this->t('Development status'),
+      NULL,
+    );
+
+    return $filters;
+  }
+
+  /**
+   * {@inheritdoc}
+   */
+  public function getProjects(array $query = []) : ProjectsResultsPage {
+    $projects = $this->getProjectData();
+
+    // Filter by project machine name.
+    if (!empty($query['machine_name'])) {
+      $projects = array_filter($projects, fn(Project $project): bool => $project->machineName === $query['machine_name']);
+    }
+
+    // Filter by categories.
+    if (!empty($query['categories'])) {
+      $projects = array_filter($projects, fn(Project $project): bool => empty(array_intersect(array_column($project->categories, 'id'), explode(',', $query['categories']))));
+    }
+
+    // Filter by search text.
+    if (!empty($query['search'])) {
+      $projects = array_filter($projects, fn(Project $project): bool => stripos($project->title, $query['search']) !== FALSE);
+    }
+
+    return $this->createResultsPage($projects);
+  }
+
+  /**
+   * Gets the project data from cache if available, or builds it if not.
+   *
+   * @return \Drupal\project_browser\ProjectBrowser\Project[]
+   *   An array of projects.
+   */
+  private function getProjectData(): array {
+    $stored_projects = $this->cacheBin->get('RandomData:projects');
+    if ($stored_projects) {
+      return $stored_projects->data;
+    }
+
+    $projects = [];
+    $number_of_projects = rand(16, 36);
+    $categories = $this->getCategories();
+    $broken_image = 'https://image.not/found' . uniqid() . '.jpg';
+    $good_image = 'https://picsum.photos/600/400';
+    for ($i = 0; $i < $number_of_projects; $i++) {
+      $machine_name = strtolower($this->randomGenerator->word(10));
+      $project_images = [];
+      if ($i !== 0) {
+        $project_images[] = [
+          'file' => Url::fromUri(str_replace('4', '5', $good_image)),
+          'alt' => $machine_name . ' something',
+        ];
+        $project_images[] = [
+          'file' => Url::fromUri(str_replace('4', '6', $good_image)),
+          'alt' => $machine_name . ' another thing',
+        ];
+      }
+
+      $projects[] = new Project(
+        logo: Url::fromUri($i % 3 ? $good_image : $broken_image),
+        isCompatible: (bool) ($i / 4),
+        isMaintained: (bool) rand(0, 1),
+        isCovered: (bool) rand(0, 1),
+        projectUsageTotal: rand(0, 100000),
+        machineName: $machine_name,
+        body: [
+          'summary' => $this->randomGenerator->paragraphs(1),
+          'value' => $this->randomGenerator->paragraphs(5),
+        ],
+        title: ucwords($machine_name),
+        packageName: 'random/' . $machine_name,
+        categories: [$categories[array_rand($categories)]],
+        images: $project_images,
+        id: $machine_name,
+      );
+    }
+    $this->cacheBin->set('RandomData:projects', $projects);
+    return $projects;
+  }
+
+}

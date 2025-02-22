@@ -1,0 +1,100 @@
+parameters:
+  level: 8
+  universalObjectCratesClasses:
+    - Drupal\Core\Extension\Extension
+  reportUnmatchedIgnoredErrors: true
+  excludePaths:
+    # The scripts directory does not contain runtime code.
+    - scripts
+    # The node_modules contains some PHP to ignore.
+    - sveltejs
+    # The recipe form contains a couple of errors that cannot be ignored.
+    # @todo Remove this exclusion when support for Drupal 10 is dropped in https://www.drupal.org/i/3494848.
+    - src/Form/RecipeForm.php
+  # Every ignore should be documented.
+  ignoreErrors:
+    # Ignore errors when using `array` as a return type.
+    -
+      identifier: missingType.iterableValue
+      reportUnmatched: false
+
+    ### Core testing suite
+    # Caused by missing return type on \Drupal\FunctionalJavascriptTests\WebDriverTestBase::assertSession().
+    -
+      message: "#^Call to an undefined method Drupal\\\\Tests\\\\WebAssert\\:\\:assert[a-zA-Z]+\\(\\)\\.$#"
+      paths:
+        - tests/src/FunctionalJavascript
+      reportUnmatched: false
+    # Caused by missing return type on \Drupal\FunctionalJavascriptTests\WebDriverTestBase::assertSession().
+    -
+      message: "#^Call to an undefined method Drupal\\\\Tests\\\\WebAssert\\:\\:wait[a-zA-Z]+\\(\\)\\.$#"
+      paths:
+        - tests/src/FunctionalJavascript
+      reportUnmatched: false
+    # Caused by \Drupal\KernelTests\KernelTestBase::$container having the wrong type.
+    -
+      message: "#^Property Drupal\\\\KernelTests\\\\KernelTestBase\\:\\:\\$container \\(Drupal\\\\Core\\\\DependencyInjection\\\\ContainerBuilder\\) does not accept Drupal\\\\Component\\\\DependencyInjection\\\\ContainerInterface\\.$#"
+      paths:
+        - tests/src/Kernel/DatabaseTablesTest.php
+      reportUnmatched: false
+    # Caused by \Drupal\Tests\user\Traits\UserCreationTrait::createUser() returning FALSE instead of throwing an exception.
+    -
+      message: "#^Parameter \\#1 \\$account of method Drupal\\\\Tests\\\\BrowserTestBase\\:\\:drupalLogin\\(\\) expects Drupal\\\\Core\\\\Session\\\\AccountInterface, Drupal\\\\user\\\\Entity\\\\User\\|false given\\.$#"
+      paths:
+        - tests/src/Functional
+        - tests/src/FunctionalJavascript
+      reportUnmatched: false
+
+    ### Package Manager
+    # @todo Remove after resolving https://www.drupal.org/i/3501836.
+    # Caused by using self instead of static as a return type in \Drupal\fixture_manipulator\FixtureManipulator.
+    -
+      message: "#^Method Drupal\\\\fixture_manipulator\\\\FixtureManipulator\\:\\:commitChanges\\(\\) invoked with 0 parameters, 1 required\\.$#"
+      paths:
+        - tests/src/Kernel/InstallerTest.php
+        - tests/src/Kernel/CoreNotUpdatedValidatorTest.php
+        - tests/src/Kernel/PackageNotInstalledValidatorTest.php
+      reportUnmatched: false
+    # Caused by missing return type on \Drupal\Tests\package_manager\Traits\FixtureManipulatorTrait::getStageFixtureManipulator().
+    -
+      message: "#^Call to an undefined method object\\:\\:setCorePackageVersion\\(\\)\\.$#"
+      paths:
+        - tests/src/Kernel/CoreNotUpdatedValidatorTest.php
+      reportUnmatched: false
+    # Caused by missing @throws on \Drupal\package_manager\StageBase::apply().
+    -
+      message: "#^Dead catch \\- Drupal\\\\package_manager\\\\Exception\\\\StageEventException is never thrown in the try block\\.$#"
+      paths:
+        - tests/src/Kernel/CoreNotUpdatedValidatorTest.php
+      reportUnmatched: false
+
+    # @todo: Remove the following rules when support is dropped for Drupal 10.2, which does not have recipes.
+    -
+      message: "#^Access to constant COMPOSER_PROJECT_TYPE on an unknown class Drupal\\\\Core\\\\Recipe\\\\Recipe\\.$#"
+      paths:
+        - src/Plugin/ProjectBrowserSource/Recipes.php
+        - src/RecipeActivator.php
+        - tests/src/Kernel/RecipesSourceTest.php
+      reportUnmatched: false
+    -
+      message: "#^Call to static method [a-zA-Z]+\\(\\) on an unknown class Drupal\\\\Core\\\\Recipe\\\\Recipe[a-zA-Z]*\\.$#"
+      path: src/RecipeActivator.php
+      reportUnmatched: false
+    -
+      message: "#^Class Drupal\\\\Core\\\\Recipe\\\\RecipeAppliedEvent not found\\.$#"
+      path: src/RecipeActivator.php
+      reportUnmatched: false
+    -
+      message: "#^Parameter \\$event of method Drupal\\\\project_browser\\\\RecipeActivator\\:\\:onApply\\(\\) has invalid type Drupal\\\\Core\\\\Recipe\\\\RecipeAppliedEvent\\.$#"
+      path: src/RecipeActivator.php
+      reportUnmatched: false
+
+    -
+      message: "#^Call to static method createFromDirectory\\(\\) on an unknown class Drupal\\\\Core\\\\Recipe\\\\Recipe\\.$#"
+      path: tests/src/Kernel/RecipeActivatorTest.php
+      reportUnmatched: false
+
+    -
+      message: "#^Call to static method processRecipe\\(\\) on an unknown class Drupal\\\\Core\\\\Recipe\\\\RecipeRunner\\.$#"
+      path: tests/src/Kernel/RecipeActivatorTest.php
+      reportUnmatched: false
