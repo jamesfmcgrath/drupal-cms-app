@@ -9,6 +9,7 @@ If you want to use [DDEV](https://ddev.com) to run Drupal CMS locally, follow th
 1. Install DDEV following the [documentation](https://ddev.com/get-started/)
 2. Open the command line and `cd` to the root directory of this project
 3. Run the following commands:
+
 ```shell
 ddev config --project-type=drupal11 --docroot=web
 ddev start
@@ -45,3 +46,34 @@ To contribute to Drupal CMS development, see the [drupal_cms project](https://ww
 Drupal CMS and all derivative works are licensed under the [GNU General Public License, version 2 or later](http://www.gnu.org/licenses/old-licenses/gpl-2.0.html).
 
 Learn about the [Drupal trademark and logo policy here](https://www.drupal.com/trademark).
+
+## Initialize a drupalcms recipe
+
+```shell
+mkdir drupalcms-app \
+  && cd drupalcms-app \
+  && lando init \
+    --source cwd \
+    --recipe drupal11 \
+    --webroot web \
+    --name drupalcms-app
+
+# Start the environment
+lando start
+
+# Create latest Drupal CMS project via composer
+lando composer create-project drupal/cms tmp && cp -r tmp/. . && rm -rf tmp
+
+# Install drupal
+lando drush site:install recipes/drupal_cms_starter --db-url=mysql://drupal11:drupal11@database/drupal11 -y
+
+# List information about this app
+lando info
+
+# Add gitignore
+# Rename example in web folder
+
+# Add git remote
+git init
+git remote add origin git@github.com:jamesfmcgrath/[REPO].git
+```
