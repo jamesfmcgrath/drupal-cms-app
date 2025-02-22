@@ -2,3 +2,7 @@ name: drupalcms-app
 recipe: drupal11
 config:
   webroot: web
+tooling:
+  drush:
+    service: appserver
+    cmd: /bin/sh -c "drush --root=$LANDO_WEBROOT --uri=https://$LANDO_APP_NAME.lndo.site $@" "$0"
